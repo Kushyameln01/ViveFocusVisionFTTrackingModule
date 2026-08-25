@@ -1,0 +1,15 @@
+{
+  "ModuleId": "6c13649b-c38c-4f69-9dc1-d62bb35220cf",
+  "LastUpdated": "2026-08-26T03:52:00+09:00",
+  "Version": "1.0.1",
+  "Downloads": 0,
+  "Ratings": 0,
+  "Rating": 0.0,
+  "AuthorName": "HTC Corp. base / Focus Vision adaptation",
+  "ModuleName": "VIVE Focus Vision Hybrid",
+  "ModuleDescription": "Focus Vision-oriented fork of HTC VIVE Streaming Face Tracking v1.7. Clamps per-eye Openness/Blink to [0,1] and uses Blink as an independent closure fallback.",
+  "UsageInstructions": "Enable 'Streaming avatar data to VRChat via OSC' in VIVE Hub Console. Openness is clamped to [0,1] on supported eye packets. On 37-value packets Blink is also clamped, then corrected openness = min(openness, 1 - blink), independently per eye. 23-value packets use clamped Openness without Blink correction.",
+  "DownloadUrl": "",
+  "ModulePageUrl": "https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule",
+  "DllFileName": "ViveFocusVisionFTTrackingModule.dll"
+}
