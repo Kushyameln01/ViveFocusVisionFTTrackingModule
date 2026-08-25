@@ -1,4 +1,4 @@
-name: Publish private install package
+name: Publish install package
 
 on:
   workflow_dispatch:
@@ -26,13 +26,16 @@ jobs:
       - name: Build and verify module
         run: python tools/build_module.py
 
-      - name: Create private-repository release
+      - name: Create or update release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
           name: VIVE Focus Vision Hybrid ${{ inputs.tag }}
           body: |
-            Install with VRCFaceTracking: Module Registry -> Install Module from .zip.
-            This release belongs to a private repository and is only visible to authorized users.
+            VRCFaceTracking module for VIVE Focus Vision.
+
+            IMPORTANT: Do not enable this module together with HTC's original ViveStreamingFaceTrackingModule. Both modules share the same VIVE Streaming native SDK/IPC and can conflict.
+
+            Install from the VRCFaceTracking Module Registry after registry approval, or manually with Module Registry -> Install Module from .zip.
           files: dist/VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip
           fail_on_unmatched_files: true
