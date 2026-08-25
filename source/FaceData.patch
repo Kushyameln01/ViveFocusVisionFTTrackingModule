@@ -1,0 +1,22 @@
+--- official FaceData.cs
++++ VIVE Focus Vision Hybrid v1.0.1
+@@
+- data.Left.Openness = leftOpenness;
++ leftOpenness = Math.Clamp(leftOpenness, 0.0f, 1.0f);
++ if (eyeDataComponent.Length >= (int)EyeDataIndex.MAX &&
++     SafeParse(eyeDataComponent[(int)EyeDataIndex.LEFT_BLINK], out float leftBlink))
++ {
++     leftBlink = Math.Clamp(leftBlink, 0.0f, 1.0f);
++     leftOpenness = Math.Min(leftOpenness, 1.0f - leftBlink);
++ }
++ data.Left.Openness = leftOpenness;
+@@
+- data.Right.Openness = rightOpenness;
++ rightOpenness = Math.Clamp(rightOpenness, 0.0f, 1.0f);
++ if (eyeDataComponent.Length >= (int)EyeDataIndex.MAX &&
++     SafeParse(eyeDataComponent[(int)EyeDataIndex.RIGHT_BLINK], out float rightBlink))
++ {
++     rightBlink = Math.Clamp(rightBlink, 0.0f, 1.0f);
++     rightOpenness = Math.Min(rightOpenness, 1.0f - rightBlink);
++ }
++ data.Right.Openness = rightOpenness;
