@@ -7,6 +7,9 @@ on:
         description: Release tag
         required: true
         default: v1.0.1
+  push:
+    paths:
+      - '.release-trigger-public-v1.0.1'
 
 permissions:
   contents: write
@@ -29,8 +32,8 @@ jobs:
       - name: Create or update release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag }}
-          name: VIVE Focus Vision Hybrid ${{ inputs.tag }}
+          tag_name: ${{ inputs.tag || 'v1.0.1' }}
+          name: VIVE Focus Vision Hybrid ${{ inputs.tag || 'v1.0.1' }}
           body: |
             VRCFaceTracking module for VIVE Focus Vision.
 
