@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGING = Path(os.environ.get("VRCFT_BUILD_STAGING", "/mnt/data"))
+STAGING = Path(os.environ.get("VRCFT_BUILD_STAGING", ROOT / ".build-staging")).resolve()
 UPSTREAM_URL = "https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule/releases/download/v1.7/VRCFT_VSFT_Module_v1.7.zip"
 UPSTREAM_SHA256 = "5099af633f3206685e53a793ae5842adc3db881f272800407c71996cc3fa087f"
 EXPECTED_DLL_SHA256 = "db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9"
@@ -27,11 +27,16 @@ if actual_upstream != UPSTREAM_SHA256:
         f"Upstream v1.7 SHA-256 mismatch: {actual_upstream} (expected {UPSTREAM_SHA256})"
     )
 
+# The archived v1.0.1 verification builder intentionally uses /mnt/data paths.
+# Generate a temporary copy with only that staging prefix rewritten, preserving
+# the actual PE/IL patch logic byte-for-byte.
 source_builder = ROOT / "source" / "build_focusvision_v1.0.1.py"
-expected_builder_copy = STAGING / "build_focusvision_v101.py"
-shutil.copy2(source_builder, expected_builder_copy)
+builder_text = source_builder.read_text(encoding="utf-8")
+builder_text = builder_text.replace("/mnt/data", STAGING.as_posix())
+portable_builder = STAGING / "build_focusvision_v101.py"
+portable_builder.write_text(builder_text, encoding="utf-8")
 
-subprocess.run([sys.executable, str(source_builder)], cwd=ROOT, check=True)
+subprocess.run([sys.executable, str(portable_builder)], cwd=ROOT, check=True)
 
 generated = STAGING / MODULE_NAME
 if not generated.exists():
