@@ -42,7 +42,7 @@ generated = STAGING / MODULE_NAME
 if not generated.exists():
     raise RuntimeError(f"Builder did not produce {generated}")
 
-with zipfile.ZipFile(generated) as z:
+with zipfile.ZipFile(generated, "r") as z:
     required = {
         "ViveFocusVisionFTTrackingModule.dll",
         "module.json",
@@ -62,10 +62,43 @@ if actual_dll != EXPECTED_DLL_SHA256:
         f"Generated DLL SHA-256 mismatch: {actual_dll} (expected {EXPECTED_DLL_SHA256})"
     )
 
+# Keep the verified binary produced by the archived builder, but replace public
+# distribution metadata/docs with the canonical repository files. This allows
+# registry URLs and operational warnings to be updated without touching the
+# verified PE/IL patch.
+manifest_bytes = (ROOT / "module.json").read_bytes()
+readme_bytes = (ROOT / "package" / "README.txt").read_bytes()
+
 dist = ROOT / "dist"
 dist.mkdir(exist_ok=True)
 out = dist / MODULE_NAME
-shutil.copy2(generated, out)
+
+with zipfile.ZipFile(generated, "r") as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+    for info in src.infolist():
+        data = src.read(info.filename)
+        if info.filename == "module.json":
+            data = manifest_bytes
+        elif info.filename == "README.txt":
+            data = readme_bytes
+        dst.writestr(info, data)
+
+# Final package validation.
+with zipfile.ZipFile(out, "r") as z:
+    final_dll = z.read("ViveFocusVisionFTTrackingModule.dll")
+    final_manifest = z.read("module.json")
+    final_readme = z.read("README.txt")
+
+if hashlib.sha256(final_dll).hexdigest() != EXPECTED_DLL_SHA256:
+    raise RuntimeError("Final package DLL changed during metadata repack")
+
+expected_download_url = (
+    "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule/"
+    "releases/download/v1.0.1/VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip"
+).encode("utf-8")
+if expected_download_url not in final_manifest:
+    raise RuntimeError("Final module.json does not contain the public release DownloadUrl")
+if b"Do NOT enable this module together" not in final_readme:
+    raise RuntimeError("Final README.txt does not contain the native SDK conflict warning")
 
 print(f"Installable module: {out}")
 print(f"DLL SHA-256: {actual_dll}")
