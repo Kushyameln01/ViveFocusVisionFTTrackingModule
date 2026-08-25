@@ -1,0 +1,29 @@
+name: Build installable VRCFT module
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build and verify module
+        run: python tools/build_module.py
+
+      - name: Upload installable module
+        uses: actions/upload-artifact@v4
+        with:
+          name: VRCFT_VIVE_FocusVision_Hybrid_v1.0.1
+          path: dist/VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip
+          if-no-files-found: error
