@@ -7,7 +7,7 @@ Implementation constraint:
   - Existing PE section payloads are preserved byte-for-byte.
   - No CLR metadata rows/strings/GUIDs/blobs/AssemblyRefs/Fields/Methods are added.
   - Only Update() and OnVSSettingChange() MethodDef RVA cells are redirected.
-  - New watchdog IL lives in an appended .fvwdog executable section.
+  - New watchdog IL is appended after the existing .fvfix raw end; the .fvfix section is extended without adding another section.
 
 @@ Update()
 + OnVSSettingChange(null); // internal watchdog tick; native callbacks pass non-null strings
