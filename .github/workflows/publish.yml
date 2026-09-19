@@ -6,7 +6,7 @@ on:
       tag:
         description: Release tag
         required: true
-        default: v1.0.2
+        default: v1.0.3
 
 permissions:
   contents: write
@@ -23,11 +23,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
       - name: Build and verify module
         run: python tools/build_module.py
 
@@ -39,10 +34,10 @@ jobs:
           body: |
             VRCFaceTracking module for VIVE Focus Vision.
 
-            v1.0.2 adds automatic Face Tracking recovery when an initialized Eye or Lip callback stream stalls for 5 seconds while the HMD streaming connection remains active.
+            v1.0.3 restores the verified v1.0.1 PE/metadata layout and adds the 5-second Eye/Lip callback watchdog using a byte-level PE patch only. Mono.Cecil is no longer used.
 
             IMPORTANT: Do not enable this module together with HTC's original ViveStreamingFaceTrackingModule. Both modules share the same VIVE Streaming native SDK/IPC and can conflict.
 
             Install from the VRCFaceTracking Module Registry after registry approval, or manually with Module Registry -> Install Module from .zip.
-          files: dist/VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip
+          files: dist/VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip
           fail_on_unmatched_files: true

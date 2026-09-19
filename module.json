@@ -1,7 +1,7 @@
 {
   "ModuleId": "6c13649b-c38c-4f69-9dc1-d62bb35220cf",
-  "LastUpdated": "2026-09-19T17:10:00+09:00",
-  "Version": "1.0.2",
+  "LastUpdated": "2026-09-19T18:05:00+09:00",
+  "Version": "1.0.3",
   "Downloads": 0,
   "Ratings": 0,
   "Rating": 0.0,
@@ -9,7 +9,7 @@
   "ModuleName": "VIVE Focus Vision Hybrid",
   "ModuleDescription": "Unofficial Focus Vision-oriented derivative of HTC VIVE Streaming Face Tracking Module v1.7. Adds per-eye Openness/Blink clamping, independent Blink closure fallback, and automatic recovery when Eye/Lip callbacks stall.",
   "UsageInstructions": "Do not enable this module together with HTC's original ViveStreamingFaceTrackingModule; they share the same VIVE Streaming native SDK/IPC and can conflict. Disable or remove the original module first. Enable 'Streaming avatar data to VRChat via OSC' in VIVE Hub Console before using this module.",
-  "DownloadUrl": "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule/releases/download/v1.0.2/VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip",
+  "DownloadUrl": "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule/releases/download/v1.0.3/VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip",
   "ModulePageUrl": "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule",
   "DllFileName": "ViveFocusVisionFTTrackingModule.dll"
 }

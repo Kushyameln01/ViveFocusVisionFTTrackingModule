@@ -1,4 +1,4 @@
-VIVE Focus Vision Hybrid - VRCFT Custom Module v1.0.2
+VIVE Focus Vision Hybrid - VRCFT Custom Module v1.0.3
 
 IMPORTANT
 Do NOT enable this module together with HTC's original ViveStreamingFaceTrackingModule.
@@ -13,7 +13,9 @@ Before use:
 Base: HTC ViveStreamingFaceTrackingModule v1.7
 Independent ModuleId: 6c13649b-c38c-4f69-9dc1-d62bb35220cf
 
-v1.0.2 changes:
+v1.0.3 changes:
+  - Replaces the v1.0.2 Mono.Cecil rewrite with a byte-level PE patch based on the exact verified v1.0.1 DLL.
+  - Preserves all existing section payloads; only two existing MethodDef RVA cells are changed and watchdog code is appended by extending the existing .fvfix section.
   - Adds a 5-second callback watchdog for initialized Eye and Lip tracking streams.
   - If either initialized stream stops receiving callbacks while the HMD streaming connection remains active, the module resets Face Tracking and lets the existing StartFaceTracking() path initialize it again.
   - No Eye/Lip mapping, Blink/Openness calculation, or native VIVE Streaming SDK library is changed.
