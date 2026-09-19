@@ -1,36 +1,56 @@
---- official ViveStreamingFaceTrackingInterface.cs
-+++ VIVE Focus Vision Hybrid v1.0.2
-@@
-+private static long LastEyeDataTimestampMs = 0;
-+private static long LastLipDataTimestampMs = 0;
-@@ EYE_DATA callback
- EyeTrackerInited = true;
-+LastEyeDataTimestampMs = Environment.TickCount64;
-@@ LIP_DATA callback
- LipTrackerInited = true;
-+LastLipDataTimestampMs = Environment.TickCount64;
-@@ Update(), while ModuleState.Active
-+CheckFaceTrackingWatchdog();
- StartFaceTracking();
-@@
-+// Only initialized streams are monitored. A missing callback for 5 seconds
-+// while the HMD streaming connection remains active resets Face Tracking.
-+// The existing StartFaceTracking() path then performs re-initialization.
-+private static void CheckFaceTrackingWatchdog()
-+{
-+    if (!HasClientConnection) return;
+--- verified v1.0.1 managed DLL behavior
++++ VIVE Focus Vision Hybrid v1.0.3 PE-preserving watchdog
+
+Implementation constraint:
+  - Input must exactly match v1.0.1 DLL SHA-256:
+    db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9
+  - Existing PE section payloads are preserved byte-for-byte.
+  - No CLR metadata rows/strings/GUIDs/blobs/AssemblyRefs/Fields/Methods are added.
+  - Only Update() and OnVSSettingChange() MethodDef RVA cells are redirected.
+  - New watchdog IL lives in an appended .fvwdog executable section.
+
+@@ Update()
++ OnVSSettingChange(null); // internal watchdog tick; native callbacks pass non-null strings
+  [existing v1.0.1 Update body unchanged]
+
+@@ OnVSSettingChange(string setting)
++ if (setting != null) return; // preserve native callback as no-op
 +
-+    long now = Environment.TickCount64;
-+    bool eyeTimedOut = EyeTrackerInited
-+        && LastEyeDataTimestampMs != 0
-+        && now - LastEyeDataTimestampMs > 5000;
-+    bool lipTimedOut = LipTrackerInited
-+        && LastLipDataTimestampMs != 0
-+        && now - LastLipDataTimestampMs > 5000;
++ // retryCount == -1 marks watchdog mode after InitFaceTrackerWorker has exited.
++ // Before watchdog mode, original initialization constants remain 5 / 3000.
++ // During watchdog mode the same existing integer fields are reused as
++ // independent Eye/Lip idle counters; no new static fields are introduced.
++ if (retryCount != -1)
++ {
++     if (!EyeTrackerInited && !LipTrackerInited)
++     {
++         MAX_RETRY_COUNT = 5;
++         FACE_TRACKER_DATA_TIMEOUT_MS = 3000;
++         return;
++     }
++     if (InitFaceTrackerWorker != null && InitFaceTrackerWorker.IsAlive) return;
++     retryCount = -1;
++     MAX_RETRY_COUNT = 0;
++     FACE_TRACKER_DATA_TIMEOUT_MS = 0;
++     return;
++ }
 +
-+    if (!eyeTimedOut && !lipTimedOut) return;
++ if (EyeTrackerInited)
++ {
++     FACE_TRACKER_DATA_TIMEOUT_MS = NewEyeData
++         ? 0
++         : FACE_TRACKER_DATA_TIMEOUT_MS + 11;
++     if (FACE_TRACKER_DATA_TIMEOUT_MS > 5000) goto restart;
++ }
 +
-+    StopFaceTracking();
-+    LastEyeDataTimestampMs = 0;
-+    LastLipDataTimestampMs = 0;
-+}
++ if (LipTrackerInited)
++ {
++     MAX_RETRY_COUNT = NewLipData ? 0 : MAX_RETRY_COUNT + 11;
++     if (MAX_RETRY_COUNT > 5000) goto restart;
++ }
++ return;
++
++restart:
++ StopFaceTracking();
++ MAX_RETRY_COUNT = 5;
++ FACE_TRACKER_DATA_TIMEOUT_MS = 3000;
