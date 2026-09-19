@@ -13,7 +13,7 @@ UPSTREAM_URL = "https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule/
 UPSTREAM_SHA256 = "5099af633f3206685e53a793ae5842adc3db881f272800407c71996cc3fa087f"
 EXPECTED_V101_DLL_SHA256 = "db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9"
 BASE_MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip"
-MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip"
+MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip"
 
 STAGING.mkdir(parents=True, exist_ok=True)
 base_zip = STAGING / "VRCFT_VSFT_Module_v1.7.zip"
@@ -69,24 +69,12 @@ if pre_watchdog_hash != EXPECTED_V101_DLL_SHA256:
         f"(expected {EXPECTED_V101_DLL_SHA256})"
     )
 
-# Apply only the callback-stall watchdog. The patcher adds timestamps for Eye/Lip
-# callbacks and resets face tracking when an initialized stream receives no data
-# for 5 seconds while the HMD streaming connection remains active.
-patcher = ROOT / "tools" / "WatchdogPatcher" / "WatchdogPatcher.csproj"
-subprocess.run(
-    [
-        "dotnet",
-        "run",
-        "--project",
-        str(patcher),
-        "--configuration",
-        "Release",
-        "--",
-        str(dll_path),
-    ],
-    cwd=ROOT,
-    check=True,
-)
+# Apply the callback-stall watchdog without rebuilding the managed assembly.
+# The patcher requires the exact verified v1.0.1 DLL, preserves every existing
+# section payload, appends only a new .fvwdog code section, and changes only the
+# two existing MethodDef RVA cells needed to redirect Update()/OnVSSettingChange().
+patcher = ROOT / "tools" / "pe_watchdog_patcher.py"
+subprocess.run([sys.executable, str(patcher), str(dll_path)], cwd=ROOT, check=True)
 
 post_watchdog_hash = hashlib.sha256(dll_path.read_bytes()).hexdigest()
 if post_watchdog_hash == pre_watchdog_hash:
@@ -116,10 +104,10 @@ if hashlib.sha256(final_dll).hexdigest() != post_watchdog_hash:
 
 expected_download_url = (
     "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule/"
-    "releases/download/v1.0.2/VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip"
+    "releases/download/v1.0.3/VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip"
 ).encode("utf-8")
 if expected_download_url not in final_manifest:
-    raise RuntimeError("Final module.json does not contain the v1.0.2 DownloadUrl")
+    raise RuntimeError("Final module.json does not contain the v1.0.3 DownloadUrl")
 if b"Do NOT enable this module together" not in final_readme:
     raise RuntimeError("Final README.txt does not contain the native SDK conflict warning")
 if b"5-second callback watchdog" not in final_readme:
@@ -127,6 +115,6 @@ if b"5-second callback watchdog" not in final_readme:
 
 print(f"Installable module: {out}")
 print(f"Pre-watchdog v1.0.1 DLL SHA-256: {pre_watchdog_hash}")
-print(f"Patched v1.0.2 DLL SHA-256: {post_watchdog_hash}")
+print(f"Patched v1.0.3 DLL SHA-256: {post_watchdog_hash}")
 print(f"Package SHA-256: {hashlib.sha256(out.read_bytes()).hexdigest()}")
 print("Install in VRCFaceTracking: Module Registry -> Install Module from .zip")
