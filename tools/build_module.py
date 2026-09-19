@@ -71,7 +71,7 @@ if pre_watchdog_hash != EXPECTED_V101_DLL_SHA256:
 
 # Apply the callback-stall watchdog without rebuilding the managed assembly.
 # The patcher requires the exact verified v1.0.1 DLL, preserves every existing
-# section payload, appends only a new .fvwdog code section, and changes only the
+# section payload, extends only the existing .fvfix code section, and changes only the
 # two existing MethodDef RVA cells needed to redirect Update()/OnVSSettingChange().
 patcher = ROOT / "tools" / "pe_watchdog_patcher.py"
 subprocess.run([sys.executable, str(patcher), str(dll_path)], cwd=ROOT, check=True)
