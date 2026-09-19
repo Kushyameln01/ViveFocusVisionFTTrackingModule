@@ -1,0 +1,36 @@
+--- official ViveStreamingFaceTrackingInterface.cs
++++ VIVE Focus Vision Hybrid v1.0.2
+@@
++private static long LastEyeDataTimestampMs = 0;
++private static long LastLipDataTimestampMs = 0;
+@@ EYE_DATA callback
+ EyeTrackerInited = true;
++LastEyeDataTimestampMs = Environment.TickCount64;
+@@ LIP_DATA callback
+ LipTrackerInited = true;
++LastLipDataTimestampMs = Environment.TickCount64;
+@@ Update(), while ModuleState.Active
++CheckFaceTrackingWatchdog();
+ StartFaceTracking();
+@@
++// Only initialized streams are monitored. A missing callback for 5 seconds
++// while the HMD streaming connection remains active resets Face Tracking.
++// The existing StartFaceTracking() path then performs re-initialization.
++private static void CheckFaceTrackingWatchdog()
++{
++    if (!HasClientConnection) return;
++
++    long now = Environment.TickCount64;
++    bool eyeTimedOut = EyeTrackerInited
++        && LastEyeDataTimestampMs != 0
++        && now - LastEyeDataTimestampMs > 5000;
++    bool lipTimedOut = LipTrackerInited
++        && LastLipDataTimestampMs != 0
++        && now - LastLipDataTimestampMs > 5000;
++
++    if (!eyeTimedOut && !lipTimedOut) return;
++
++    StopFaceTracking();
++    LastEyeDataTimestampMs = 0;
++    LastLipDataTimestampMs = 0;
++}
