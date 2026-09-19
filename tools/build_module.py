@@ -11,8 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGING = Path(os.environ.get("VRCFT_BUILD_STAGING", ROOT / ".build-staging")).resolve()
 UPSTREAM_URL = "https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule/releases/download/v1.7/VRCFT_VSFT_Module_v1.7.zip"
 UPSTREAM_SHA256 = "5099af633f3206685e53a793ae5842adc3db881f272800407c71996cc3fa087f"
-EXPECTED_DLL_SHA256 = "db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9"
-MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip"
+EXPECTED_V101_DLL_SHA256 = "db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9"
+BASE_MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip"
+MODULE_NAME = "VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip"
 
 STAGING.mkdir(parents=True, exist_ok=True)
 base_zip = STAGING / "VRCFT_VSFT_Module_v1.7.zip"
@@ -27,9 +28,8 @@ if actual_upstream != UPSTREAM_SHA256:
         f"Upstream v1.7 SHA-256 mismatch: {actual_upstream} (expected {UPSTREAM_SHA256})"
     )
 
-# The archived v1.0.1 verification builder intentionally uses /mnt/data paths.
-# Generate a temporary copy with only that staging prefix rewritten, preserving
-# the actual PE/IL patch logic byte-for-byte.
+# Reproduce the verified v1.0.1 Hybrid DLL first. This preserves the existing
+# Focus Vision eye-data changes byte-for-byte before the watchdog is added.
 source_builder = ROOT / "source" / "build_focusvision_v1.0.1.py"
 builder_text = source_builder.read_text(encoding="utf-8")
 builder_text = builder_text.replace("/mnt/data", STAGING.as_posix())
@@ -38,9 +38,14 @@ portable_builder.write_text(builder_text, encoding="utf-8")
 
 subprocess.run([sys.executable, str(portable_builder)], cwd=ROOT, check=True)
 
-generated = STAGING / MODULE_NAME
+generated = STAGING / BASE_MODULE_NAME
 if not generated.exists():
     raise RuntimeError(f"Builder did not produce {generated}")
+
+package_root = STAGING / "watchdog-package"
+if package_root.exists():
+    shutil.rmtree(package_root)
+package_root.mkdir(parents=True)
 
 with zipfile.ZipFile(generated, "r") as z:
     required = {
@@ -54,33 +59,51 @@ with zipfile.ZipFile(generated, "r") as z:
     missing = required.difference(z.namelist())
     if missing:
         raise RuntimeError(f"Generated module is missing: {sorted(missing)}")
-    dll = z.read("ViveFocusVisionFTTrackingModule.dll")
+    z.extractall(package_root)
 
-actual_dll = hashlib.sha256(dll).hexdigest()
-if actual_dll != EXPECTED_DLL_SHA256:
+dll_path = package_root / "ViveFocusVisionFTTrackingModule.dll"
+pre_watchdog_hash = hashlib.sha256(dll_path.read_bytes()).hexdigest()
+if pre_watchdog_hash != EXPECTED_V101_DLL_SHA256:
     raise RuntimeError(
-        f"Generated DLL SHA-256 mismatch: {actual_dll} (expected {EXPECTED_DLL_SHA256})"
+        f"Generated v1.0.1 DLL SHA-256 mismatch: {pre_watchdog_hash} "
+        f"(expected {EXPECTED_V101_DLL_SHA256})"
     )
 
-# Keep the verified binary produced by the archived builder, but replace public
-# distribution metadata/docs with the canonical repository files. This allows
-# registry URLs and operational warnings to be updated without touching the
-# verified PE/IL patch.
-manifest_bytes = (ROOT / "module.json").read_bytes()
-readme_bytes = (ROOT / "package" / "README.txt").read_bytes()
+# Apply only the callback-stall watchdog. The patcher adds timestamps for Eye/Lip
+# callbacks and resets face tracking when an initialized stream receives no data
+# for 5 seconds while the HMD streaming connection remains active.
+patcher = ROOT / "tools" / "WatchdogPatcher" / "WatchdogPatcher.csproj"
+subprocess.run(
+    [
+        "dotnet",
+        "run",
+        "--project",
+        str(patcher),
+        "--configuration",
+        "Release",
+        "--",
+        str(dll_path),
+    ],
+    cwd=ROOT,
+    check=True,
+)
+
+post_watchdog_hash = hashlib.sha256(dll_path.read_bytes()).hexdigest()
+if post_watchdog_hash == pre_watchdog_hash:
+    raise RuntimeError("Watchdog patch did not change the managed module DLL")
+
+# Replace only public distribution metadata/docs after patching the DLL.
+(package_root / "module.json").write_bytes((ROOT / "module.json").read_bytes())
+(package_root / "README.txt").write_bytes((ROOT / "package" / "README.txt").read_bytes())
 
 dist = ROOT / "dist"
 dist.mkdir(exist_ok=True)
 out = dist / MODULE_NAME
 
-with zipfile.ZipFile(generated, "r") as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
-    for info in src.infolist():
-        data = src.read(info.filename)
-        if info.filename == "module.json":
-            data = manifest_bytes
-        elif info.filename == "README.txt":
-            data = readme_bytes
-        dst.writestr(info, data)
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+    for file in sorted(package_root.rglob("*")):
+        if file.is_file():
+            dst.write(file, file.relative_to(package_root).as_posix())
 
 # Final package validation.
 with zipfile.ZipFile(out, "r") as z:
@@ -88,19 +111,22 @@ with zipfile.ZipFile(out, "r") as z:
     final_manifest = z.read("module.json")
     final_readme = z.read("README.txt")
 
-if hashlib.sha256(final_dll).hexdigest() != EXPECTED_DLL_SHA256:
+if hashlib.sha256(final_dll).hexdigest() != post_watchdog_hash:
     raise RuntimeError("Final package DLL changed during metadata repack")
 
 expected_download_url = (
     "https://github.com/Kushyameln01/ViveFocusVisionFTTrackingModule/"
-    "releases/download/v1.0.1/VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip"
+    "releases/download/v1.0.2/VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip"
 ).encode("utf-8")
 if expected_download_url not in final_manifest:
-    raise RuntimeError("Final module.json does not contain the public release DownloadUrl")
+    raise RuntimeError("Final module.json does not contain the v1.0.2 DownloadUrl")
 if b"Do NOT enable this module together" not in final_readme:
     raise RuntimeError("Final README.txt does not contain the native SDK conflict warning")
+if b"5-second callback watchdog" not in final_readme:
+    raise RuntimeError("Final README.txt does not document the callback watchdog")
 
 print(f"Installable module: {out}")
-print(f"DLL SHA-256: {actual_dll}")
+print(f"Pre-watchdog v1.0.1 DLL SHA-256: {pre_watchdog_hash}")
+print(f"Patched v1.0.2 DLL SHA-256: {post_watchdog_hash}")
 print(f"Package SHA-256: {hashlib.sha256(out.read_bytes()).hexdigest()}")
 print("Install in VRCFaceTracking: Module Registry -> Install Module from .zip")
