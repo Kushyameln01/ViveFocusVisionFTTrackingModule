@@ -1,4 +1,4 @@
-VIVE Focus Vision Hybrid - VRCFT Custom Module v1.0.1
+VIVE Focus Vision Hybrid - VRCFT Custom Module v1.0.2
 
 IMPORTANT
 Do NOT enable this module together with HTC's original ViveStreamingFaceTrackingModule.
@@ -13,12 +13,12 @@ Before use:
 Base: HTC ViveStreamingFaceTrackingModule v1.7
 Independent ModuleId: 6c13649b-c38c-4f69-9dc1-d62bb35220cf
 
-v1.0.1 changes:
-  - CLR Module filename identity changed to ViveFocusVisionFTTrackingModule.dll.
-  - Openness is clamped to [0,1] for supported eye packets.
-  - Blink is clamped to [0,1] before hybrid correction on 37-value packets.
+v1.0.2 changes:
+  - Adds a 5-second callback watchdog for initialized Eye and Lip tracking streams.
+  - If either initialized stream stops receiving callbacks while the HMD streaming connection remains active, the module resets Face Tracking and lets the existing StartFaceTracking() path initialize it again.
+  - No Eye/Lip mapping, Blink/Openness calculation, or native VIVE Streaming SDK library is changed.
 
-Eye calculation (per eye, independently):
+Existing v1.0.1 eye calculation remains unchanged:
   O = clamp(rawOpenness, 0, 1)
   B = clamp(blink, 0, 1)
   correctedOpenness = min(O, 1 - B)   [37-value packets]
