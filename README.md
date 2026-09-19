@@ -25,7 +25,7 @@ v1.0.2ではMono.Cecilの `assembly.Write()` によりDLL全体が再構成さ�
 - 既存PE section payloadをbyte-for-byteで保持。
 - CLR metadata tableへField / Method / AssemblyRef / String / GUID / Blobを追加しない。
 - metadata内で変更する既存セルは `Update()` と `OnVSSettingChange()` のMethodDef RVAだけ。
-- Watchdogコードは新規 `.fvwdog` sectionへ配置。
+- Watchdogコードは既存 `.fvfix` sectionのraw末尾を拡張して配置し、section数は増やさない。
 
 ## Important: do not enable together with HTC's original module
 
@@ -183,7 +183,7 @@ Verified **v1.0.1 pre-Watchdog baseline DLL** SHA-256:
 
 `db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9`
 
-v1.0.3のbuildでは、まずこのv1.0.1 baselineと完全一致するDLLを再生成・検証し、既存section payloadを保持したまま `.fvwdog` sectionと2箇所のMethodDef RVA変更だけを適用します。
+v1.0.3のbuildでは、まずこのv1.0.1 baselineと完全一致するDLLを再生成・検証し、既存sectionの元バイトを保持したまま `.fvfix` section末尾を拡張し、2箇所のMethodDef RVA変更だけを適用します。
 
 ## License / attribution
 
