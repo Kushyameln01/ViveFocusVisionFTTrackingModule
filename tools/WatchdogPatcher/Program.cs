@@ -19,8 +19,13 @@ string targetTypeName;
 using (var assembly = AssemblyDefinition.ReadAssembly(path, new ReaderParameters { ReadWrite = false }))
 {
     var module = assembly.MainModule;
-    var type = module.Types.FirstOrDefault(t => t.FullName == "ViveStreamingFaceTrackingModule.ViveStreamingFaceTrackingModule")
-        ?? throw new InvalidOperationException("Target module type was not found.");
+    var type = module.Types.FirstOrDefault(t =>
+        t.Methods.Any(m => m.Name == "OnVSStatusUpdate") &&
+        t.Methods.Any(m => m.Name == "StartFaceTracking") &&
+        t.Fields.Any(field => field.Name == "HasClientConnection") &&
+        t.Fields.Any(field => field.Name == "EyeTrackerInited") &&
+        t.Fields.Any(field => field.Name == "LipTrackerInited"))
+        ?? throw new InvalidOperationException("Target face tracking module type was not found.");
     targetTypeName = type.FullName;
 
     if (type.Fields.Any(f => f.Name == "LastEyeDataTimestampMs") ||
