@@ -2,20 +2,30 @@
 
 VIVE Focus Vision向けに調整した **VRCFaceTracking v5 Custom Module**。HTC `ViveStreamingFaceTrackingModule v1.7` をベースに、左右独立のBlink補助と `[0,1]` Clampを追加しています。
 
-Current version: **v1.0.2**
+Current version: **v1.0.3**
 
-## Latest release: v1.0.2
+## Latest release: v1.0.3
 
-v1.0.2では、Eye / LipのFace Tracking Callbackが一度正常に初期化された後で停止するケースに対し、**5秒のCallback Watchdog** を追加しました。
+v1.0.3では、v1.0.2で使用したMono.CecilによるManaged DLL全体の再書き込みを廃止し、**検証済みv1.0.1 DLLのPE/metadata配置を保持したbyte-level patch**へ変更しました。5秒のCallback Watchdog機能自体は維持します。
 
-- Eye / Lipの最終Callback受信時刻を個別に監視。
+- Eye / Lipの受信有無をUpdate周期ごとに個別監視し、初期化完了後のみidle counterを進めます。
 - HMDのVIVE Streaming接続が維持されている状態で、初期化済みstreamのCallbackが5秒間停止した場合のみRecoveryを実行。
 - 既存の `StopFaceTracking()` で状態をresetし、既存の `StartFaceTracking()` 経路から再初期化。
 - DisplayPort / VIVE Streaming接続全体の再接続は不要。
 - v1.0.1で実装したBlink / Openness補正、Eye/Lip mapping、Gaze / Pupil / EyeWide / EyeSquint / Brow処理は変更していません。
 - HTC VIVE Streaming native SDK DLLも変更していません。
 
-v1.0.2は、**v1.0.1の既存Face Tracking処理を保持したまま、Callback停止時の自動復旧のみを追加した版**です。
+v1.0.3は、**v1.0.1の既存Face Tracking処理と既存section payloadを保持したまま、Callback停止時の自動復旧だけを追加する版**です。
+
+### v1.0.2からの修正
+
+v1.0.2ではMono.Cecilの `assembly.Write()` によりDLL全体が再構成され、v1.0.1の `.fvfix` section配置が保持されていませんでした。v1.0.3ではMono.Cecil/.NET 8 build dependencyを削除し、次の制約をbuild時に検証します。
+
+- 入力DLLはSHA-256 `db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9` のv1.0.1に限定。
+- 既存PE section payloadをbyte-for-byteで保持。
+- CLR metadata tableへField / Method / AssemblyRef / String / GUID / Blobを追加しない。
+- metadata内で変更する既存セルは `Update()` と `OnVSSettingChange()` のMethodDef RVAだけ。
+- Watchdogコードは新規 `.fvwdog` sectionへ配置。
 
 ## Important: do not enable together with HTC's original module
 
@@ -34,7 +44,7 @@ VRCFaceTracking → **Module Registry** → `VIVE Focus Vision Hybrid` → **Ins
 
 ### Manual ZIP install
 
-1. Releasesから `VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip` を取得。
+1. Releasesから `VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip` を取得。
 2. VRCFaceTrackingを起動。
 3. **Module Registry** を開く。
 4. **Install Module from .zip** を選択。
@@ -115,9 +125,9 @@ References:
 - HTC upstream `FaceData.cs`: https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule/blob/main/ViveStreamingFaceTrackingModule/FaceData.cs
 - Khronos `XrEyeExpressionHTC`: https://registry.khronos.org/OpenXR/specs/1.0/man/html/XrEyeExpressionHTC.html
 
-## v1.0.2: Face Tracking callback watchdog
+## v1.0.3: Face Tracking callback watchdog
 
-Eye / Lipデータを一度正常に受信した後、HMDのStreaming接続を維持したままFace TrackingのCallbackだけが停止するケースに備え、最終Callback時刻を監視します。
+Eye / Lipデータを一度正常に受信した後、HMDのStreaming接続を維持したままFace TrackingのCallbackだけが停止するケースに備えます。v1.0.3では新規timestamp Fieldを追加せず、既存の初期化用整数Fieldをtracking初期化完了後だけidle counterとして再利用します。
 
 - Eye / Lipそれぞれ、初期化済みのstreamのみ監視。
 - 5秒間Callbackが来なければ既存の `StopFaceTracking()` でTracker状態をreset。
@@ -155,8 +165,8 @@ Release生成は `.github/workflows/publish.yml` を使用します。
 - `tools/build_module.py` — 公式v1.7取得・検証・パッケージ生成ラッパー
 - `source/build_focusvision_v1.0.1.py` — v1.0.1本体パッチビルダー
 - `source/FaceData.patch` — v1.0.1 Eye/Blink補正のC#上での意図した差分
-- `source/FaceTrackingWatchdog.patch` — v1.0.2 Watchdogの意図した差分
-- `tools/WatchdogPatcher/` — v1.0.1 DLLへWatchdogのみを追加するMono.Cecil patcher
+- `source/FaceTrackingWatchdog.patch` — v1.0.3 Watchdogの意図した差分
+- `tools/pe_watchdog_patcher.py` — v1.0.1 DLLへPE/metadataを局所変更してWatchdogを追加するpatcher
 - `module.json` / `package/module.json` — VRCFT module metadata
 - `verification/` — v1.0.1検証資料
 - `.github/workflows/package.yml` — installable Artifact生成
@@ -173,7 +183,7 @@ Verified **v1.0.1 pre-Watchdog baseline DLL** SHA-256:
 
 `db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9`
 
-v1.0.2のbuildでは、まずこのv1.0.1 baselineと完全一致するDLLを再生成・検証した後、Watchdog差分だけを適用します。
+v1.0.3のbuildでは、まずこのv1.0.1 baselineと完全一致するDLLを再生成・検証し、既存section payloadを保持したまま `.fvwdog` sectionと2箇所のMethodDef RVA変更だけを適用します。
 
 ## License / attribution
 
