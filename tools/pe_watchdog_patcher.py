@@ -484,10 +484,14 @@ def main(path: Path) -> None:
         extra_sections=updated_extra,
     )
 
-    # Append one new executable section. Existing section payloads remain in place.
-    last = max(pe.sections, key=lambda s: s["va"])
-    new_va = align(last["va"] + max(last["vs"], last["rs"]), pe.section_alignment)
-    new_raw = align(len(image), pe.file_alignment)
+    # Extend the existing v1.0.1 .fvfix executable section instead of adding a
+    # new section header. This preserves the original PE section count/layout and
+    # every original byte. Watchdog code is appended after the old .fvfix raw end.
+    fvfix = next((s for s in pe.sections if s["name"] == ".fvfix"), None)
+    if fvfix is None:
+        raise RuntimeError("Verified v1.0.1 .fvfix section was not found")
+    if fvfix["rp"] + fvfix["rs"] != len(original):
+        raise RuntimeError(".fvfix is not the final raw section in the verified v1.0.1 DLL")
 
     payload = bytearray(helper_body)
     while len(payload) % 4:
@@ -495,42 +499,30 @@ def main(path: Path) -> None:
     update_offset = len(payload)
     payload.extend(updated_update_body)
 
-    new_virtual_size = len(payload)
-    new_raw_size = align(new_virtual_size, pe.file_alignment)
+    append_raw = len(original)
+    append_rva = fvfix["va"] + fvfix["rs"]
+    added_raw_size = align(len(payload), pe.file_alignment)
 
-    if len(image) < new_raw:
-        image.extend(b"\0" * (new_raw - len(image)))
     image.extend(payload)
-    image.extend(b"\0" * (new_raw + new_raw_size - len(image)))
+    image.extend(b"\0" * (append_raw + added_raw_size - len(image)))
 
-    new_section_header = pe.sec_table + pe.numsec * 40
-    if new_section_header + 40 > pe.size_headers:
-        raise RuntimeError("No PE header room for watchdog section")
-
-    image[new_section_header:new_section_header + 8] = b".fvwdog\0"
-    struct.pack_into(
-        "<IIIIIIHHI",
-        image,
-        new_section_header + 8,
-        new_virtual_size,
-        new_va,
-        new_raw_size,
-        new_raw,
-        0,
-        0,
-        0,
-        0,
-        0x60000020,
-    )
+    # Expand only the existing .fvfix section header.
+    old_fvfix_rs = fvfix["rs"]
+    new_fvfix_rs = old_fvfix_rs + added_raw_size
+    new_fvfix_vs = max(fvfix["vs"], old_fvfix_rs + len(payload))
+    struct.pack_into("<I", image, fvfix["o"] + 8, new_fvfix_vs)
+    struct.pack_into("<I", image, fvfix["o"] + 16, new_fvfix_rs)
 
     pe.p = image
-    pe.w16(pe.coff + 2, pe.numsec + 1)
-    pe.w32(pe.size_code_off, pe.u32(pe.size_code_off) + new_raw_size)
-    pe.w32(pe.size_image_off, align(new_va + new_virtual_size, pe.section_alignment))
+    pe.w32(pe.size_code_off, pe.u32(pe.size_code_off) + added_raw_size)
+    pe.w32(
+        pe.size_image_off,
+        align(fvfix["va"] + new_fvfix_vs, pe.section_alignment),
+    )
 
     # Only these two existing metadata cells change: MethodDef RVA for helper and Update.
-    pe.w32(metadata["methods"]["OnVSSettingChange"]["row"], new_va)
-    pe.w32(metadata["methods"]["Update"]["row"], new_va + update_offset)
+    pe.w32(metadata["methods"]["OnVSSettingChange"]["row"], append_rva)
+    pe.w32(metadata["methods"]["Update"]["row"], append_rva + update_offset)
 
     patched = bytes(image)
 
@@ -567,8 +559,8 @@ def main(path: Path) -> None:
     print(f"v1.0.1 baseline SHA-256: {baseline_hash}")
     print(f"Patched DLL SHA-256: {hashlib.sha256(patched).hexdigest()}")
     print(
-        f"Added section .fvwdog RVA={new_va:#x} raw={new_raw:#x} "
-        f"size={new_virtual_size}"
+        f"Extended .fvfix at RVA={append_rva:#x} raw={append_raw:#x} "
+        f"payload={len(payload)}"
     )
     print(
         "Existing section payloads preserved; only two MethodDef RVA cells changed "
