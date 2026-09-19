@@ -2,7 +2,7 @@
 
 VIVE Focus Vision向けに調整した **VRCFaceTracking v5 Custom Module**。HTC `ViveStreamingFaceTrackingModule v1.7` をベースに、左右独立のBlink補助と `[0,1]` Clampを追加しています。
 
-Current version: **v1.0.1**
+Current version: **v1.0.2**
 
 ## Important: do not enable together with HTC's original module
 
@@ -101,6 +101,16 @@ References:
 - HTC VIVE Streaming Face Tracking Module: https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule
 - HTC upstream `FaceData.cs`: https://github.com/ViveSoftware/ViveStreamingFaceTrackingModule/blob/main/ViveStreamingFaceTrackingModule/FaceData.cs
 - Khronos `XrEyeExpressionHTC`: https://registry.khronos.org/OpenXR/specs/1.0/man/html/XrEyeExpressionHTC.html
+
+## v1.0.2: Face Tracking callback watchdog
+
+Eye / Lipデータを一度正常に受信した後、HMDのStreaming接続を維持したままFace TrackingのCallbackだけが停止するケースに備え、最終Callback時刻を監視します。
+
+- Eye / Lipそれぞれ、初期化済みのstreamのみ監視。
+- 5秒間Callbackが来なければ既存の `StopFaceTracking()` でTracker状態をreset。
+- 同じ `Update()` 内の既存 `StartFaceTracking()` 経路から再初期化。
+- DisplayPort / VIVE Streaming接続全体は切断しない。
+- Eye/Lip mapping、Blink/Openness計算、VIVE native SDK DLLは変更しない。
 
 ## Focus Vision changes
 
