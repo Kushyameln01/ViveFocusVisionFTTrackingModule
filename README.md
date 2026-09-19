@@ -4,6 +4,19 @@ VIVE Focus Vision向けに調整した **VRCFaceTracking v5 Custom Module**。HT
 
 Current version: **v1.0.2**
 
+## Latest release: v1.0.2
+
+v1.0.2では、Eye / LipのFace Tracking Callbackが一度正常に初期化された後で停止するケースに対し、**5秒のCallback Watchdog** を追加しました。
+
+- Eye / Lipの最終Callback受信時刻を個別に監視。
+- HMDのVIVE Streaming接続が維持されている状態で、初期化済みstreamのCallbackが5秒間停止した場合のみRecoveryを実行。
+- 既存の `StopFaceTracking()` で状態をresetし、既存の `StartFaceTracking()` 経路から再初期化。
+- DisplayPort / VIVE Streaming接続全体の再接続は不要。
+- v1.0.1で実装したBlink / Openness補正、Eye/Lip mapping、Gaze / Pupil / EyeWide / EyeSquint / Brow処理は変更していません。
+- HTC VIVE Streaming native SDK DLLも変更していません。
+
+v1.0.2は、**v1.0.1の既存Face Tracking処理を保持したまま、Callback停止時の自動復旧のみを追加した版**です。
+
 ## Important: do not enable together with HTC's original module
 
 **HTC公式 `ViveStreamingFaceTrackingModule` と本Moduleを同時に有効化しないでください。**
@@ -21,7 +34,7 @@ VRCFaceTracking → **Module Registry** → `VIVE Focus Vision Hybrid` → **Ins
 
 ### Manual ZIP install
 
-1. Releasesから `VRCFT_VIVE_FocusVision_Hybrid_v1.0.1.zip` を取得。
+1. Releasesから `VRCFT_VIVE_FocusVision_Hybrid_v1.0.2.zip` を取得。
 2. VRCFaceTrackingを起動。
 3. **Module Registry** を開く。
 4. **Install Module from .zip** を選択。
@@ -141,7 +154,9 @@ Release生成は `.github/workflows/publish.yml` を使用します。
 - `Build-Module.ps1` — Windows用ビルド入口
 - `tools/build_module.py` — 公式v1.7取得・検証・パッケージ生成ラッパー
 - `source/build_focusvision_v1.0.1.py` — v1.0.1本体パッチビルダー
-- `source/FaceData.patch` — C#上での意図した差分
+- `source/FaceData.patch` — v1.0.1 Eye/Blink補正のC#上での意図した差分
+- `source/FaceTrackingWatchdog.patch` — v1.0.2 Watchdogの意図した差分
+- `tools/WatchdogPatcher/` — v1.0.1 DLLへWatchdogのみを追加するMono.Cecil patcher
 - `module.json` / `package/module.json` — VRCFT module metadata
 - `verification/` — v1.0.1検証資料
 - `.github/workflows/package.yml` — installable Artifact生成
@@ -154,9 +169,11 @@ HTC Vive Streaming Face Tracking Module **v1.7**
 - Asset: `VRCFT_VSFT_Module_v1.7.zip`
 - SHA-256: `5099af633f3206685e53a793ae5842adc3db881f272800407c71996cc3fa087f`
 
-Generated Hybrid DLL expected SHA-256:
+Verified **v1.0.1 pre-Watchdog baseline DLL** SHA-256:
 
 `db45ee49f18cd06b2374361777e96148af1b9856f83a1db82ce4e9fd5ec3fae9`
+
+v1.0.2のbuildでは、まずこのv1.0.1 baselineと完全一致するDLLを再生成・検証した後、Watchdog差分だけを適用します。
 
 ## License / attribution
 
