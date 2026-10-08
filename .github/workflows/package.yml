@@ -1,6 +1,8 @@
 name: Build installable VRCFT module
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
