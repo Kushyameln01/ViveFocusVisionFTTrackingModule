@@ -155,7 +155,9 @@ correctedOpenness = O               # 23-value packet
 
 **Windows:** `Build-Module.ps1`
 
-**GitHub Actions:** `Actions` → **Build installable VRCFT module** → `Run workflow`
+**GitHub Actions:** `main` が更新されるたびに **Build installable VRCFT module** が自動実行され、Releaseと同じルート構造を持つVRCFTインストール用ZIP `VRCFT_VIVE_FocusVision_Hybrid_v1.0.3.zip` をArtifactとして生成します。手動実行も `Actions` → **Build installable VRCFT module** → `Run workflow` から可能です。
+
+> GitHubの **Code → Download ZIP** で得られる `ViveFocusVisionFTTrackingModule-main.zip` はソース配布用で、リポジトリ名のフォルダが1階層入るためVRCFaceTrackingへ直接インストールできません。VRCFTにはRelease ZIPまたはActions Artifactを使用してください。
 
 Release生成は `.github/workflows/publish.yml` を使用します。
 
